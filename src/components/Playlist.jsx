@@ -192,13 +192,13 @@ export default function Playlist() {
       {!isSearching && !!searchResults.length && (
         <>
           <p dir="rtl" style={{ fontSize: 13, color: "var(--subtext)", marginBottom: 6, textAlign: "right" }}>
-            ⚠️ پیش‌نمایش iTunes فقط ۳۰ ثانیه است.
+            ⚠️  نسخه کامل در دسترس نیست، فقط ۳۰ ثانیه از طریق iTunes پخش می‌شود.
           </p>
           <h3>نتایج جستجو</h3>
           <ul className="search-results">
             {searchResults.map((s) => (
               <li key={s.id} className="result-item">
-                <img src={s.artwork} alt="" width="40" height="40" />
+                <img src={s.artwork} alt=""  />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="song-title">{s.title}</div>
                   <div className="artist">{s.artist}</div>

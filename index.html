@@ -1,18 +1,1219 @@
-<!doctype html>
-<html lang="en">
-
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/src/assets/play2.png" />
-  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/samim-font@v5.0.1/dist/font-face.css" rel="stylesheet"
-    type="text/css" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PlayList</title>
+  <title>Safeh - Gramophone Player</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React & ReactDOM (Development Version) -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+
+  <!-- Babel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
 </head>
+<body class="min-h-screen transition-colors duration-300">
 
-<body>
+  <!-- Root element for React app -->
   <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
-</body>
 
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useMemo, useCallback } = React;
+
+    /* ------------------------------------------------------------------ */
+    /* Design tokens & Themes                                             */
+    /* ------------------------------------------------------------------ */
+    const THEMES = {
+      dark: {
+        obsidian: "#0A0B0E",
+        charcoal: "#1B1C21",
+        charcoalLight: "#26272E",
+        brass: "#B8934A",
+        brassLight: "#E4C88A",
+        amber: "#FF9F45",
+        bone: "#EDE3D0",
+        wine: "#6E2A30",
+        shadow: "rgba(0,0,0,0.6)"
+      },
+      light: {
+        obsidian: "#F5F2EB",
+        charcoal: "#EAE3D2",
+        charcoalLight: "#DFD6C1",
+        brass: "#9A7534",
+        brassLight: "#5C4318",
+        amber: "#D97724",
+        bone: "#2C2825",
+        wine: "#8B3A42",
+        shadow: "rgba(0,0,0,0.1)"
+      }
+    };
+
+    const TRANSLATIONS = {
+      fa: {
+        title: "صفحه",
+        subtitle: "اتاق شنود",
+        collection: "مجموعه آواها",
+        recordings: "ضبط شده",
+        attach: "بارگذاری فایل صوتی برای این ترک",
+        replace: "جایگزینی فایل صوتی این ترک",
+        loading: "در حال بارگذاری...",
+        error: "خطا در پخش فایل — لطفا فایل دیگری امتحان کنید",
+        archive: "آرشیو صوتی شما",
+        shortcuts: "فضا: پخش/پوز · ← →: جستجو · shift+← →: ترک · ↑ ↓: صدا · m: میوت · s: تصادفی · r: تکرار",
+        reload: "بارگذاری مجدد",
+        errorTitle: "پخش‌کننده با مشکلی مواجه شد"
+      },
+      en: {
+        title: "Safeh",
+        subtitle: "A Listening Room",
+        collection: "The Collection",
+        recordings: "Recordings",
+        attach: "Attach an audio file for this side",
+        replace: "Replace audio file for this side",
+        loading: "Loading recording…",
+        error: "Couldn't play this file — try attaching another",
+        archive: "Your Audio Archive",
+        shortcuts: "space play/pause · ← → seek · shift+← → track · ↑ ↓ volume · m mute · s shuffle · r repeat",
+        reload: "Reload",
+        errorTitle: "The player hit a snag"
+      }
+    };
+
+    const FONT_DISPLAY = "'Vazirmatn', 'Fraunces', Georgia, serif";
+    const FONT_BODY = "'Vazirmatn', 'Manrope', 'Segoe UI', sans-serif";
+    const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
+
+    const STORAGE_KEY = "safeh-player-prefs-v10";
+
+    /* ------------------------------------------------------------------ */
+    /* Playlist data (Slots for your custom uploads)                      */
+    /* ------------------------------------------------------------------ */
+    const INITIAL_TRACKS = [
+      { id: "t1", title: "ترک شماره ۱", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "wine", toKey: "brass" },
+      { id: "t2", title: "ترک شماره ۲", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "brass", toKey: "charcoalLight" },
+      { id: "t3", title: "ترک شماره ۳", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "amber", toKey: "wine" },
+      { id: "t4", title: "ترک شماره ۴", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "brassLight", toKey: "wine" },
+      { id: "t5", title: "ترک شماره ۵", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "amber", toKey: "charcoalLight" },
+      { id: "t6", title: "ترک شماره ۶", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "brass", toKey: "wine" },
+      { id: "t7", title: "ترک شماره ۷", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "wine", toKey: "charcoalLight" },
+      { id: "t8", title: "ترک شماره ۸", artist: "آپلود کاربر", originLabel: "آرشیو شخصی", duration: 200, src: "", fromKey: "brassLight", toKey: "brass" },
+    ];
+
+    const BAR_COUNT = 48;
+    const BAR_BASE_R = 160;
+    const BAR_MAX_EXTRA = 28;
+    const REPEAT_MODES = ["off", "all", "one"];
+
+    const GLOBAL_CSS = `
+      @keyframes safeh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes safeh-glow-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.65; } }
+      @keyframes safeh-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+      .safeh-platter-spin { animation: safeh-spin 4.2s linear infinite; }
+      .safeh-ambient { animation: safeh-glow-pulse 5s ease-in-out infinite; }
+      .safeh-fade-in { animation: safeh-fade-in 0.25s ease-out; }
+
+      input[type="range"].safeh-range {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 20px;
+        background: transparent;
+        cursor: pointer;
+      }
+      input[type="range"].safeh-range::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 999px;
+      }
+      input[type="range"].safeh-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        margin-top: -6px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid;
+      }
+      .safeh-toggle-on {
+        background-color: rgba(255,159,69,0.2) !important;
+        color: #FF9F45 !important;
+        border-color: rgba(255,159,69,0.5) !important;
+      }
+      :focus-visible { outline: 2px solid #FF9F45; outline-offset: 2px; }
+    `;
+
+    function formatTime(s) {
+      if (!isFinite(s) || s < 0) s = 0;
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return `${m}:${sec.toString().padStart(2, "0")}`;
+    }
+
+    function initials(name) {
+      return (name || "Safeh")
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+    }
+
+    function usePrefersReducedMotion() {
+      const [reduced, setReduced] = useState(false);
+      useEffect(() => {
+        const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+        setReduced(mq.matches);
+        const handler = (e) => setReduced(e.matches);
+        if (mq.addEventListener) mq.addEventListener("change", handler);
+        else mq.addListener(handler);
+        return () => {
+          if (mq.removeEventListener) mq.removeEventListener("change", handler);
+          else mq.removeListener(handler);
+        };
+      }, []);
+      return reduced;
+    }
+
+    function simulatedLevels(count, t) {
+      const levels = new Array(count);
+      for (let i = 0; i < count; i++) {
+        const phase = (i / count) * Math.PI * 2;
+        const v = 0.35 + 0.3 * Math.sin(t * 2.2 + phase * 3) + 0.2 * Math.sin(t * 3.7 + phase * 5);
+        levels[i] = Math.max(0.08, Math.min(1, v));
+      }
+      return levels;
+    }
+
+    function idleLevels(count, t) {
+      const levels = new Array(count);
+      for (let i = 0; i < count; i++) {
+        levels[i] = 0.06 + 0.02 * Math.sin(t * 0.8 + i);
+      }
+      return levels;
+    }
+
+    function loadPrefs() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function savePrefs(prefs) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+      } catch (e) {}
+    }
+
+    /* سیستم کاملاً ایزوله برای ذخیره و بارگذاری فایل‌ها در IndexedDB به تفکیک ID هر ترک */
+    const DB_NAME = "SafehAudioDB_v6";
+    const STORE_NAME = "audios";
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+      });
+    }
+
+    async function saveAudioToIDB(trackId, blob, metadata) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.put({ blob, metadata }, trackId);
+        return new Promise((resolve) => { tx.oncomplete = () => resolve(true); });
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function loadAllAudioFromIDB() {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        return new Promise((resolve) => {
+          const request = store.getAllKeys();
+          request.onsuccess = async () => {
+            const keys = request.result;
+            const result = {};
+            for (let key of keys) {
+              const itemReq = store.get(key);
+              await new Promise((res) => {
+                itemReq.onsuccess = () => {
+                  if (itemReq.result && itemReq.result.blob) {
+                    result[key] = {
+                      url: URL.createObjectURL(itemReq.result.blob),
+                      metadata: itemReq.result.metadata
+                    };
+                  }
+                  res();
+                };
+              });
+            }
+            resolve(result);
+          };
+        });
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function LucideIcon({ name, size = 20, color = "currentColor", style }) {
+      const icons = {
+        play: <polygon points="5 3 19 12 5 21 5 3" fill={color} />,
+        pause: <g fill={color}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></g>,
+        "skip-back": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polygon points="19 20 9 12 19 4 19 20" /><line x1="5" y1="19" x2="5" y2="5" /></g>,
+        "skip-forward": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" /></g>,
+        shuffle: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></g>,
+        repeat: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></g>,
+        "repeat-1": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /><line x1="11" y1="11" x2="11" y2="15" /><path d="M12 11h-1" /></g>,
+        "volume-2": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></g>,
+        "volume-1": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></g>,
+        "volume-x": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></g>,
+        upload: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></g>,
+        "disc-3": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M6 12c0-3.3 2.7-6 6-6" /><circle cx="12" cy="12" r="2" /></g>,
+        music: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></g>,
+        "alert-triangle": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></g>,
+        "loader-2": <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></g>,
+        sun: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/></g>,
+        moon: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></g>,
+        globe: <g stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></g>
+      };
+      return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: "inline-block", verticalAlign: "middle", ...style }}>{icons[name] || null}</svg>;
+    }
+
+    function Turntable({ track, isPlaying, prefersReducedMotion, barRefs, currentTime, duration, colors }) {
+      const progress = duration ? currentTime / duration : 0;
+      const armAngle = isPlaying ? -14 + progress * 10 : -58;
+      const fromColor = colors[track.fromKey] || colors.wine;
+      const toColor = colors[track.toKey] || colors.brass;
+
+      return (
+        <div className="relative w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 shrink-0">
+          <div className="absolute inset-0 rounded-full safeh-ambient" style={{ background: `radial-gradient(circle, ${colors.amber}33, transparent 70%)`, filter: "blur(30px)" }} />
+          <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${colors.charcoalLight}, ${colors.obsidian} 70%)`, boxShadow: `0 20px 50px ${colors.shadow}, inset 0 0 0 2px ${colors.brass}33` }} />
+
+          <svg viewBox="0 0 400 400" className="absolute inset-0 w-full h-full" aria-hidden="true">
+            <defs>
+              <radialGradient id="platterGrad" cx="35%" cy="30%" r="75%">
+                <stop offset="0%" stopColor={colors.charcoalLight} />
+                <stop offset="100%" stopColor={colors.obsidian} />
+              </radialGradient>
+              <linearGradient id={`labelGrad-${track.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={fromColor} />
+                <stop offset="100%" stopColor={toColor} />
+              </linearGradient>
+              <path id="labelArcPath" d="M 154 200 A 46 46 0 0 1 246 200" fill="none" />
+            </defs>
+
+            <g>
+              {Array.from({ length: BAR_COUNT }).map((_, i) => {
+                const angle = (360 / BAR_COUNT) * i;
+                return (
+                  <line
+                    key={i}
+                    ref={(el) => (barRefs.current[i] = el)}
+                    x1={200}
+                    y1={200 - BAR_BASE_R}
+                    x2={200}
+                    y2={200 - BAR_BASE_R}
+                    stroke={colors.amber}
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    opacity={0.85}
+                    transform={`rotate(${angle} 200 200)`}
+                  />
+                );
+              })}
+            </g>
+
+            <circle cx={200} cy={200} r={198} fill="none" stroke={colors.brass} strokeOpacity={0.25} strokeWidth={1.5} />
+
+            <g
+              className="safeh-platter-spin"
+              style={{
+                transformOrigin: "200px 200px",
+                animationPlayState: isPlaying && !prefersReducedMotion ? "running" : "paused",
+              }}
+            >
+              <circle cx={200} cy={200} r={150} fill="url(#platterGrad)" />
+              {[145, 128, 111, 94, 77].map((r) => (
+                <circle key={r} cx={200} cy={200} r={r} fill="none" stroke={colors.brass} strokeOpacity={0.1} strokeWidth={1} />
+              ))}
+              <ellipse cx={150} cy={130} rx={70} ry={30} fill={colors.bone} opacity={0.04} transform="rotate(-25 150 130)" />
+
+              <circle cx={200} cy={200} r={60} fill={`url(#labelGrad-${track.id})`} stroke={colors.brass} strokeWidth={2} />
+              <text>
+                <textPath
+                  href="#labelArcPath"
+                  startOffset="0%"
+                  style={{ fontFamily: FONT_MONO, fontSize: 8, fill: colors.bone, letterSpacing: 2, opacity: 0.7 }}
+                >
+                  SAFEH · ARCHIVE · SAFEH · ARCHIVE ·
+                </textPath>
+              </text>
+              <text x={200} y={207} textAnchor="middle" style={{ fontFamily: FONT_DISPLAY, fontSize: 30, fontWeight: 600, fill: colors.bone }}>
+                {initials(track.artist)}
+              </text>
+              <circle cx={200} cy={200} r={4} fill={colors.obsidian} stroke={colors.brass} strokeWidth={1} />
+            </g>
+          </svg>
+
+          <div
+            style={{
+              position: "absolute",
+              top: "3%",
+              right: "6%",
+              width: "8%",
+              height: "56%",
+              transformOrigin: "top center",
+              transform: `rotate(${armAngle}deg)`,
+              transition: prefersReducedMotion ? "transform 0.15s linear" : "transform 1s cubic-bezier(0.22,1.4,0.36,1)",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: -7,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                background: colors.brass,
+                boxShadow: `0 0 10px ${colors.amber}88`,
+              }}
+            />
+            <div
+              style={{
+                width: "26%",
+                height: "100%",
+                margin: "0 auto",
+                background: `linear-gradient(${colors.brassLight}, ${colors.brass})`,
+                borderRadius: 999,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: -4,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 14,
+                height: 18,
+                borderRadius: "4px 4px 8px 8px",
+                background: colors.obsidian,
+                border: `2px solid ${colors.brass}`,
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    function NowPlaying({ track, index, total, hasAudio, audioStatus, onAttachClick, t, colors }) {
+      return (
+        <div className="text-center flex flex-col items-center gap-1" aria-live="polite">
+          <span style={{ fontFamily: FONT_MONO, color: colors.brass }} className="text-xs uppercase tracking-wider">
+            No. {String(index + 1).padStart(2, "0")} of {String(total).padStart(2, "0")} · {track.originLabel}
+          </span>
+          <h2 style={{ fontFamily: FONT_DISPLAY, color: colors.bone }} className="text-2xl sm:text-3xl font-semibold">
+            {track.title}
+          </h2>
+          <p style={{ fontFamily: FONT_BODY, color: colors.bone }} className="text-sm opacity-70">
+            {track.artist}
+          </p>
+
+          <button
+            onClick={onAttachClick}
+            className="mt-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs transition hover:opacity-80 safeh-fade-in"
+            style={{ fontFamily: FONT_MONO, color: colors.amber, border: `1px solid ${colors.amber}55`, background: `${colors.amber}12` }}
+          >
+            <LucideIcon name="upload" size={13} color={colors.amber} />
+            {hasAudio ? t.replace : t.attach}
+          </button>
+
+          {hasAudio && audioStatus === "loading" && (
+            <span
+              className="mt-2 flex items-center gap-2 text-xs opacity-70 safeh-fade-in"
+              style={{ fontFamily: FONT_MONO, color: colors.brassLight }}
+            >
+              <LucideIcon name="loader-2" size={13} color={colors.brassLight} style={{ animation: "safeh-spin 1s linear infinite" }} />
+              {t.loading}
+            </span>
+          )}
+
+          {hasAudio && audioStatus === "error" && (
+            <span
+              className="mt-2 flex items-center gap-2 text-xs safeh-fade-in"
+              style={{ fontFamily: FONT_MONO, color: colors.wine }}
+            >
+              <LucideIcon name="alert-triangle" size={13} color={colors.wine} />
+              {t.error}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    function IconButton({ onClick, label, children, size = 40, active = false, title, colors }) {
+      return (
+        <button
+          onClick={onClick}
+          aria-label={label}
+          aria-pressed={active}
+          title={title || label}
+          className={`rounded-full flex items-center justify-center transition hover:opacity-80 ${active ? "safeh-toggle-on" : ""}`}
+          style={{ width: size, height: size, background: colors.charcoalLight, color: colors.brassLight, border: `1px solid ${colors.brass}44` }}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function VolumeButton({ isMuted, volume, onToggle, colors }) {
+      const iconName = isMuted || volume === 0 ? "volume-x" : volume < 0.5 ? "volume-1" : "volume-2";
+      return (
+        <button
+          onClick={onToggle}
+          aria-label={isMuted ? "Unmute" : "Mute"}
+          title={isMuted ? "Unmute (m)" : "Mute (m)"}
+          className="rounded-full flex items-center justify-center transition"
+          style={{ width: 32, height: 32, color: colors.brassLight }}
+        >
+          <LucideIcon name={iconName} size={18} color={colors.brassLight} />
+        </button>
+      );
+    }
+
+    function TransportControls({
+      isPlaying,
+      onTogglePlay,
+      onNext,
+      onPrev,
+      currentTime,
+      duration,
+      onSeek,
+      onSeekStart,
+      onSeekEnd,
+      volume,
+      isMuted,
+      onVolumeChange,
+      onToggleMute,
+      shuffleOn,
+      onToggleShuffle,
+      repeatMode,
+      onCycleRepeat,
+      colors,
+    }) {
+      return (
+        <div className="w-full flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <span style={{ fontFamily: FONT_MONO, color: colors.bone }} className="text-xs opacity-60 w-10 text-right">
+              {formatTime(currentTime)}
+            </span>
+            <input
+              type="range"
+              className="safeh-range flex-1 min-w-0"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(currentTime, duration || 0)}
+              onMouseDown={onSeekStart}
+              onTouchStart={onSeekStart}
+              onMouseUp={onSeekEnd}
+              onTouchEnd={onSeekEnd}
+              onChange={(e) => onSeek(parseFloat(e.target.value))}
+              aria-label="Seek"
+            />
+            <span style={{ fontFamily: FONT_MONO, color: colors.bone }} className="text-xs opacity-60 w-10">
+              {formatTime(duration)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2" style={{ minWidth: 88 }}>
+              <VolumeButton isMuted={isMuted} volume={volume} onToggle={onToggleMute} colors={colors} />
+              <input
+                type="range"
+                className="safeh-range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={isMuted ? 0 : volume}
+                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                aria-label="Volume"
+                style={{ width: 72 }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-4">
+              <IconButton onClick={onToggleShuffle} label="Shuffle" title="Shuffle (s)" size={34} active={shuffleOn} colors={colors}>
+                <LucideIcon name="shuffle" size={15} color={colors.brassLight} />
+              </IconButton>
+              <IconButton onClick={onPrev} label="Previous track" title="Previous (←)" size={40} colors={colors}>
+                <LucideIcon name="skip-back" size={18} color={colors.brassLight} />
+              </IconButton>
+              <button
+                onClick={onTogglePlay}
+                aria-label={isPlaying ? "Pause" : "Play"}
+                title={isPlaying ? "Pause (space)" : "Play (space)"}
+                className="rounded-full flex items-center justify-center transition transform active:scale-95"
+                style={{
+                  width: 64,
+                  height: 64,
+                  background: `linear-gradient(145deg, ${colors.brassLight}, ${colors.brass})`,
+                  boxShadow: isPlaying ? `0 0 22px ${colors.amber}66, 0 4px 14px ${colors.shadow}` : `0 4px 14px ${colors.shadow}`,
+                }}
+              >
+                {isPlaying ? (
+                  <LucideIcon name="pause" size={26} color={colors.obsidian} />
+                ) : (
+                  <LucideIcon name="play" size={26} color={colors.obsidian} style={{ marginLeft: 3 }} />
+                )}
+              </button>
+              <IconButton onClick={onNext} label="Next track" title="Next (→)" size={40} colors={colors}>
+                <LucideIcon name="skip-forward" size={18} color={colors.brassLight} />
+              </IconButton>
+              <IconButton onClick={onCycleRepeat} label={`Repeat: ${repeatMode}`} title={`Repeat: ${repeatMode} (r)`} size={34} active={repeatMode !== "off"} colors={colors}>
+                <LucideIcon name={repeatMode === "one" ? "repeat-1" : "repeat"} size={15} color={colors.brassLight} />
+              </IconButton>
+            </div>
+
+            <div style={{ minWidth: 88 }} className="hidden sm:block" />
+          </div>
+        </div>
+      );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Playlist Components                                                */
+    /* ------------------------------------------------------------------ */
+    function PlaylistRow({ track, index, isActive, isPlaying, onSelect, hasAudio, colors }) {
+      return (
+        <button
+          onClick={() => onSelect(index)}
+          aria-current={isActive ? "true" : undefined}
+          aria-label={`${track.title} by ${track.artist}, ${formatTime(track.duration)}`}
+          className="w-full flex items-center gap-3 sm:gap-4 rounded-xl px-3 py-3 transition text-left hover:bg-black/5"
+          style={{
+            background: isActive ? `${colors.brass}1A` : "transparent",
+            borderLeft: isActive ? `3px solid ${colors.amber}` : "3px solid transparent",
+          }}
+        >
+          <span style={{ fontFamily: FONT_MONO, color: colors.brass }} className="text-xs opacity-80 w-6 shrink-0">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span
+              style={{ fontFamily: FONT_DISPLAY, color: isActive ? colors.amber : colors.bone }}
+              className="block text-base font-semibold truncate"
+            >
+              {track.title}
+            </span>
+            <span style={{ fontFamily: FONT_BODY, color: colors.bone }} className="block text-xs opacity-55 truncate">
+              {track.artist}
+            </span>
+          </span>
+          {hasAudio && (
+            <LucideIcon name="music" size={13} color={colors.brass} style={{ opacity: 0.7 }} />
+          )}
+          {isActive && (
+            <LucideIcon
+              name="disc-3"
+              size={16}
+              color={colors.amber}
+              style={{ animation: "safeh-spin 3s linear infinite", animationPlayState: isPlaying ? "running" : "paused" }}
+            />
+          )}
+          <span style={{ fontFamily: FONT_MONO, color: colors.bone }} className="text-xs opacity-50 shrink-0">
+            {formatTime(track.duration)}
+          </span>
+        </button>
+      );
+    }
+
+    function PlaylistPanel({ tracks, activeIndex, isPlaying, onSelect, t, colors }) {
+      return (
+        <nav
+          aria-label="Playlist"
+          className="rounded-2xl p-4 sm:p-6 flex flex-col gap-6"
+          style={{ background: colors.charcoal, border: `1px solid ${colors.brass}2A` }}
+        >
+          <div className="flex items-center justify-between">
+            <h3 style={{ fontFamily: FONT_DISPLAY, color: colors.bone }} className="text-lg font-semibold">
+              {t.collection}
+            </h3>
+            <span style={{ fontFamily: FONT_MONO, color: colors.bone }} className="text-xs opacity-50">
+              {tracks.length} {t.recordings}
+            </span>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ fontFamily: FONT_MONO, color: colors.brass }} className="text-xs uppercase tracking-widest">
+                {t.archive}
+              </span>
+              <span style={{ background: `${colors.brass}33` }} className="flex-1 h-px" />
+            </div>
+            <div className="flex flex-col gap-1">
+              {tracks.map((tr, i) => (
+                <PlaylistRow
+                  key={tr.id}
+                  track={tr}
+                  index={i}
+                  isActive={i === activeIndex}
+                  isPlaying={isPlaying}
+                  onSelect={onSelect}
+                  hasAudio={Boolean(tr.src)}
+                  colors={colors}
+                />
+              ))}
+            </div>
+          </div>
+        </nav>
+      );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Error boundary                                                     */
+    /* ------------------------------------------------------------------ */
+    class SafehErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { error: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { error };
+      }
+      componentDidCatch(error, info) {
+        console.error("Safeh player crashed:", error, info);
+      }
+      render() {
+        if (this.state.error) {
+          return (
+            <div
+              className="min-h-screen w-full flex flex-col items-center justify-center gap-4 px-6 text-center"
+              style={{ fontFamily: FONT_BODY }}
+            >
+              <h2 style={{ fontFamily: FONT_DISPLAY }} className="text-xl font-semibold">
+                {this.props.t.errorTitle}
+              </h2>
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-full px-5 py-2 text-sm font-medium transition"
+                style={{ background: `linear-gradient(145deg, #E4C88A, #B8934A)`, color: "#0A0B0E" }}
+              >
+                {this.props.t.reload}
+              </button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Main Component                                                     */
+    /* ------------------------------------------------------------------ */
+    function SafehGramophonePlayer() {
+      const savedPrefs = useMemo(() => loadPrefs(), []);
+
+      const [theme, setTheme] = useState(() => savedPrefs?.theme || "dark");
+      const [lang, setLang] = useState(() => savedPrefs?.lang || "fa");
+      const [tracks, setTracks] = useState(INITIAL_TRACKS);
+      const [trackIndex, setTrackIndex] = useState(() =>
+        savedPrefs && Number.isInteger(savedPrefs.trackIndex) && savedPrefs.trackIndex >= 0 && savedPrefs.trackIndex < INITIAL_TRACKS.length
+          ? savedPrefs.trackIndex
+          : 0
+      );
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [currentTime, setCurrentTime] = useState(0);
+      const [realDuration, setRealDuration] = useState(null);
+      const [volume, setVolume] = useState(() => (savedPrefs && typeof savedPrefs.volume === "number" ? savedPrefs.volume : 0.75));
+      const [isMuted, setIsMuted] = useState(() => Boolean(savedPrefs && savedPrefs.isMuted));
+      const [isSeeking, setIsSeeking] = useState(false);
+      const [seekVersion, setSeekVersion] = useState(0);
+      const [shuffleOn, setShuffleOn] = useState(() => Boolean(savedPrefs && savedPrefs.shuffleOn));
+      const [repeatMode, setRepeatMode] = useState(() =>
+        savedPrefs && REPEAT_MODES.includes(savedPrefs.repeatMode) ? savedPrefs.repeatMode : "off"
+      );
+      const [audioStatus, setAudioStatus] = useState("idle");
+
+      const audioRef = useRef(null);
+      const barRefs = useRef([]);
+      const fileInputRef = useRef(null);
+      const shuffleHistoryRef = useRef([]);
+
+      const prefersReducedMotion = usePrefersReducedMotion();
+      const colors = THEMES[theme];
+      const t = TRANSLATIONS[lang];
+
+      useEffect(() => {
+        document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+        document.documentElement.lang = lang;
+        document.body.style.backgroundColor = colors.obsidian;
+        document.body.style.color = colors.bone;
+      }, [lang, theme, colors]);
+
+      useEffect(() => {
+        savePrefs({ trackIndex, volume, isMuted, shuffleOn, repeatMode, theme, lang });
+      }, [trackIndex, volume, isMuted, shuffleOn, repeatMode, theme, lang]);
+
+      // بارگذاری فایل‌های صوتی ذخیره‌شده به تفکیک شناسه اختصاصی هر ترک (track.id) از IndexedDB
+      useEffect(() => {
+        loadAllAudioFromIDB().then((savedAudios) => {
+          if (Object.keys(savedAudios).length > 0) {
+            setTracks((prevTracks) =>
+              prevTracks.map((tr) => {
+                if (savedAudios[tr.id]) {
+                  return {
+                    ...tr,
+                    title: savedAudios[tr.id].metadata.title,
+                    artist: savedAudios[tr.id].metadata.artist,
+                    src: savedAudios[tr.id].url
+                  };
+                }
+                return tr;
+              })
+            );
+          }
+        });
+      }, []);
+
+      const track = tracks[trackIndex] || tracks[0];
+      const effectiveSrc = track.src;
+      const hasRealAudio = Boolean(effectiveSrc);
+      const effectiveDuration = hasRealAudio && realDuration ? realDuration : (track.duration || 200);
+
+      const goNext = useCallback(() => {
+        setTrackIndex((current) => {
+          if (shuffleOn && tracks.length > 1) {
+            shuffleHistoryRef.current.push(current);
+            let next = current;
+            while (next === current) {
+              next = Math.floor(Math.random() * tracks.length);
+            }
+            return next;
+          }
+          return (current + 1) % tracks.length;
+        });
+      }, [shuffleOn, tracks.length]);
+
+      const goPrev = useCallback(() => {
+        setTrackIndex((current) => {
+          if (shuffleOn && shuffleHistoryRef.current.length > 0) {
+            return shuffleHistoryRef.current.pop();
+          }
+          return (current - 1 + tracks.length) % tracks.length;
+        });
+      }, [shuffleOn, tracks.length]);
+
+      const handleTrackEnd = useCallback(() => {
+        if (repeatMode === "one") {
+          setCurrentTime(0);
+          if (audioRef.current) {
+            try { audioRef.current.currentTime = 0; } catch (e) {}
+            audioRef.current.play().catch(() => {});
+          } else {
+            setSeekVersion((v) => v + 1);
+          }
+          return;
+        }
+        const isLastSequential = !shuffleOn && trackIndex === tracks.length - 1;
+        if (isLastSequential && repeatMode === "off") {
+          setIsPlaying(false);
+          setCurrentTime(effectiveDuration || 0);
+          return;
+        }
+        goNext();
+        setIsPlaying(true);
+      }, [repeatMode, shuffleOn, trackIndex, tracks.length, effectiveDuration, goNext]);
+
+      const seekTo = useCallback(
+        (val) => {
+          const clamped = Math.max(0, Math.min(val, effectiveDuration || 0));
+          setCurrentTime(clamped);
+          if (hasRealAudio && audioRef.current) {
+            try { audioRef.current.currentTime = clamped; } catch (e) {}
+          }
+          setSeekVersion((v) => v + 1);
+        },
+        [effectiveDuration, hasRealAudio]
+      );
+
+      function togglePlay() {
+        if (!effectiveSrc) return;
+        setIsPlaying((p) => !p);
+      }
+
+      function handleSelectTrack(i) {
+        if (shuffleOn) shuffleHistoryRef.current.push(trackIndex);
+        setTrackIndex(i);
+        setIsPlaying(Boolean(tracks[i].src));
+      }
+
+      function handleAttachClick() {
+        if (fileInputRef.current) fileInputRef.current.click();
+      }
+
+      async function handleFileChosen(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        let fileName = file.name.replace(/\.[^/.]+$/, "");
+        const objectUrl = URL.createObjectURL(file);
+
+        // ذخیره فایل صوتی در دیتابیس با کلید منحصر به فرد track.id مربوط به همین ترک بدون پاک شدن بقیه ترک‌ها
+        await saveAudioToIDB(track.id, file, { title: fileName, artist: "Custom Upload" });
+
+        setTracks((prev) => {
+          const updated = [...prev];
+          updated[trackIndex] = {
+            ...updated[trackIndex],
+            title: fileName,
+            artist: "Custom Upload",
+            src: objectUrl
+          };
+          return updated;
+        });
+
+        setAudioStatus("loading");
+        setRealDuration(null);
+        setIsPlaying(true);
+        e.target.value = "";
+      }
+
+      useEffect(() => {
+        setCurrentTime(0);
+        setRealDuration(null);
+        setAudioStatus(hasRealAudio ? "loading" : "idle");
+        if (audioRef.current) {
+          try { audioRef.current.currentTime = 0; } catch (e) {}
+        }
+      }, [trackIndex, effectiveSrc, hasRealAudio]);
+
+      useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        if (isPlaying && hasRealAudio) {
+          audio.play().catch(() => setIsPlaying(false));
+        } else {
+          audio.pause();
+        }
+      }, [isPlaying, hasRealAudio, trackIndex, effectiveSrc]);
+
+      useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        const onTime = () => { if (!isSeeking) setCurrentTime(audio.currentTime); };
+        const onLoaded = () => { setRealDuration(audio.duration); setAudioStatus("ready"); };
+        const onWaiting = () => setAudioStatus("loading");
+        const onCanPlay = () => setAudioStatus("ready");
+        const onError = () => { setAudioStatus("error"); setIsPlaying(false); };
+        const onEnded = () => handleTrackEnd();
+
+        audio.addEventListener("timeupdate", onTime);
+        audio.addEventListener("loadedmetadata", onLoaded);
+        audio.addEventListener("waiting", onWaiting);
+        audio.addEventListener("canplay", onCanPlay);
+        audio.addEventListener("error", onError);
+        audio.addEventListener("ended", onEnded);
+        return () => {
+          audio.removeEventListener("timeupdate", onTime);
+          audio.removeEventListener("loadedmetadata", onLoaded);
+          audio.removeEventListener("waiting", onWaiting);
+          audio.removeEventListener("canplay", onCanPlay);
+          audio.removeEventListener("error", onError);
+          audio.removeEventListener("ended", onEnded);
+        };
+      }, [trackIndex, effectiveSrc, isSeeking, handleTrackEnd]);
+
+      useEffect(() => {
+        if (hasRealAudio || !isPlaying) return;
+        const start = performance.now() - currentTime * 1000;
+        let raf;
+        const tick = () => {
+          const elapsed = (performance.now() - start) / 1000;
+          if (elapsed >= effectiveDuration) {
+            handleTrackEnd();
+            return;
+          }
+          setCurrentTime(elapsed);
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+      }, [isPlaying, hasRealAudio, trackIndex, seekVersion, effectiveDuration, handleTrackEnd, currentTime]);
+
+      useEffect(() => {
+        if (audioRef.current) audioRef.current.volume = isMuted ? 0 : volume;
+      }, [volume, isMuted]);
+
+      useEffect(() => {
+        let raf;
+        const frame = (now) => {
+          const tVal = now / 1000;
+          const levels = isPlaying ? simulatedLevels(BAR_COUNT, tVal) : idleLevels(BAR_COUNT, tVal);
+          for (let i = 0; i < BAR_COUNT; i++) {
+            const el = barRefs.current[i];
+            if (el) el.setAttribute("y2", String(200 - BAR_BASE_R - levels[i] * BAR_MAX_EXTRA));
+          }
+          raf = requestAnimationFrame(frame);
+        };
+        raf = requestAnimationFrame(frame);
+        return () => cancelAnimationFrame(raf);
+      }, [isPlaying]);
+
+      useEffect(() => {
+        function onKeyDown(e) {
+          const tag = (e.target && e.target.tagName) || "";
+          if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+          switch (e.key) {
+            case " ":
+            case "Spacebar":
+              e.preventDefault();
+              togglePlay();
+              break;
+            case "ArrowRight":
+              e.preventDefault();
+              if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                goNext();
+                if (tracks[trackIndex]?.src) setIsPlaying(true);
+              } else {
+                seekTo(currentTime + 5);
+              }
+              break;
+            case "ArrowLeft":
+              e.preventDefault();
+              if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                goPrev();
+                if (tracks[trackIndex]?.src) setIsPlaying(true);
+              } else {
+                seekTo(currentTime - 5);
+              }
+              break;
+            case "ArrowUp":
+              e.preventDefault();
+              setVolume((v) => Math.min(1, +(v + 0.05).toFixed(2)));
+              setIsMuted(false);
+              break;
+            case "ArrowDown":
+              e.preventDefault();
+              setVolume((v) => Math.max(0, +(v - 0.05).toFixed(2)));
+              setIsMuted(false);
+              break;
+            case "m":
+            case "M":
+              setIsMuted((m) => !m);
+              break;
+            case "s":
+            case "S":
+              setShuffleOn((s) => !s);
+              break;
+            case "r":
+            case "R":
+              setRepeatMode((mode) => REPEAT_MODES[(REPEAT_MODES.indexOf(mode) + 1) % REPEAT_MODES.length]);
+              break;
+            case "n":
+            case "N":
+              goNext();
+              if (tracks[trackIndex]?.src) setIsPlaying(true);
+              break;
+            case "p":
+            case "P":
+              goPrev();
+              if (tracks[trackIndex]?.src) setIsPlaying(true);
+              break;
+            default:
+              break;
+          }
+        }
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+      }, [currentTime, goNext, goPrev, seekTo, tracks, trackIndex]);
+
+      return (
+        <SafehErrorBoundary t={t}>
+          <div className="min-h-screen w-full flex flex-col" style={{ background: colors.obsidian, fontFamily: FONT_BODY, color: colors.bone }}>
+            <style>{GLOBAL_CSS}</style>
+            <audio ref={audioRef} src={effectiveSrc || undefined} preload="metadata" />
+            <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleFileChosen} />
+
+            <header className="flex items-center justify-between px-6 py-6 sm:px-10">
+              <div className="flex items-center gap-3">
+                <div
+                  className="rounded-full flex items-center justify-center"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    background: `radial-gradient(circle at 35% 30%, ${colors.brassLight}, ${colors.brass})`,
+                    boxShadow: `0 0 14px ${colors.amber}55`,
+                  }}
+                >
+                  <LucideIcon name="disc-3" size={22} color={colors.obsidian} />
+                </div>
+                <div>
+                  <h1 style={{ fontFamily: FONT_DISPLAY, color: colors.bone, fontStyle: "italic" }} className="text-xl sm:text-2xl font-semibold leading-none">
+                    {t.title}{" "}
+                    <span dir={lang === 'fa' ? 'rtl' : 'ltr'} style={{ fontFamily: FONT_BODY, opacity: 0.5, fontStyle: "normal" }} className="text-sm">
+                      {lang === 'fa' ? 'صفحه' : 'Safeh'}
+                    </span>
+                  </h1>
+                  <p style={{ fontFamily: FONT_MONO, color: colors.bone }} className="text-xs opacity-50 uppercase tracking-widest">
+                    {t.subtitle}
+                  </p>
+                </div>
+              </div>
+
+              {/* Theme & Language Switchers */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition hover:opacity-80"
+                  style={{ background: colors.charcoalLight, color: colors.bone, border: `1px solid ${colors.brass}44` }}
+                >
+                  <LucideIcon name={theme === "dark" ? "sun" : "moon"} size={14} color={colors.amber} />
+                  <span>{theme === "dark" ? (lang === 'fa' ? 'روشن' : 'Light') : (lang === 'fa' ? 'تاریک' : 'Dark')}</span>
+                </button>
+                <button
+                  onClick={() => setLang(lang === "fa" ? "en" : "fa")}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition hover:opacity-80"
+                  style={{ background: colors.charcoalLight, color: colors.bone, border: `1px solid ${colors.brass}44` }}
+                >
+                  <LucideIcon name="globe" size={14} color={colors.brass} />
+                  <span>{lang === "fa" ? "English" : "فارسی"}</span>
+                </button>
+              </div>
+            </header>
+
+            <main className="flex-1 flex flex-col lg:flex-row gap-8 px-6 sm:px-10 pb-6">
+              <section className="flex-1 flex flex-col items-center gap-8">
+                <Turntable
+                  track={track}
+                  isPlaying={isPlaying}
+                  prefersReducedMotion={prefersReducedMotion}
+                  barRefs={barRefs}
+                  currentTime={currentTime}
+                  duration={effectiveDuration}
+                  colors={colors}
+                />
+                <NowPlaying
+                  track={track}
+                  index={trackIndex}
+                  total={tracks.length}
+                  hasAudio={hasRealAudio}
+                  audioStatus={audioStatus}
+                  onAttachClick={handleAttachClick}
+                  t={t}
+                  colors={colors}
+                />
+
+                <div className="hidden lg:block w-full max-w-xl">
+                  <TransportControls
+                    isPlaying={isPlaying}
+                    onTogglePlay={togglePlay}
+                    onNext={() => { goNext(); if (tracks[trackIndex]?.src) setIsPlaying(true); }}
+                    onPrev={() => { goPrev(); if (tracks[trackIndex]?.src) setIsPlaying(true); }}
+                    currentTime={currentTime}
+                    duration={effectiveDuration}
+                    onSeek={seekTo}
+                    onSeekStart={() => setIsSeeking(true)}
+                    onSeekEnd={() => setIsSeeking(false)}
+                    volume={volume}
+                    isMuted={isMuted}
+                    onVolumeChange={(v) => {
+                      setVolume(v);
+                      setIsMuted(false);
+                    }}
+                    onToggleMute={() => setIsMuted((m) => !m)}
+                    shuffleOn={shuffleOn}
+                    onToggleShuffle={() => setShuffleOn((s) => !s)}
+                    repeatMode={repeatMode}
+                    onCycleRepeat={() => setRepeatMode((mode) => REPEAT_MODES[(REPEAT_MODES.indexOf(mode) + 1) % REPEAT_MODES.length])}
+                    colors={colors}
+                  />
+                </div>
+
+                <p style={{ fontFamily: FONT_MONO, color: colors.bone }} className="hidden lg:block text-xs opacity-35 text-center">
+                  {t.shortcuts}
+                </p>
+              </section>
+
+              <aside className="w-full lg:w-96 shrink-0">
+                <PlaylistPanel
+                  tracks={tracks}
+                  activeIndex={trackIndex}
+                  isPlaying={isPlaying}
+                  onSelect={handleSelectTrack}
+                  t={t}
+                  colors={colors}
+                />
+              </aside>
+            </main>
+
+            <div
+              className="sticky bottom-0 lg:hidden z-20"
+              style={{ background: colors.obsidian === "#0A0B0E" ? "rgba(10,11,14,0.92)" : "rgba(245,242,235,0.92)", borderTop: `1px solid ${colors.brass}33` }}
+            >
+              <div className="px-4 py-3 backdrop-blur-md">
+                <TransportControls
+                  isPlaying={isPlaying}
+                  onTogglePlay={togglePlay}
+                  onNext={() => { goNext(); if (tracks[trackIndex]?.src) setIsPlaying(true); }}
+                  onPrev={() => { goPrev(); if (tracks[trackIndex]?.src) setIsPlaying(true); }}
+                  currentTime={currentTime}
+                  duration={effectiveDuration}
+                  onSeek={seekTo}
+                  onSeekStart={() => setIsSeeking(true)}
+                  onSeekEnd={() => setIsSeeking(false)}
+                  volume={volume}
+                  isMuted={isMuted}
+                  onVolumeChange={(v) => {
+                    setVolume(v);
+                    setIsMuted(false);
+                  }}
+                  onToggleMute={() => setIsMuted((m) => !m)}
+                  shuffleOn={shuffleOn}
+                  onToggleShuffle={() => setShuffleOn((s) => !s)}
+                  repeatMode={repeatMode}
+                  onCycleRepeat={() => setRepeatMode((mode) => REPEAT_MODES[(REPEAT_MODES.indexOf(mode) + 1) % REPEAT_MODES.length])}
+                  colors={colors}
+                />
+              </div>
+            </div>
+          </div>
+        </SafehErrorBoundary>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(
+      <SafehGramophonePlayer />
+    );
+  </script>
+</body>
 </html>

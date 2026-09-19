@@ -28,22 +28,20 @@ body {
   background-color: var(--bg);
   color: var(--text);
   transition: background-color 0.25s, color 0.25s;
+  
 }
-
 .playlist-container {
-  direction: rtl;
   text-align: right;
   position: fixed;
   top: 0;
   right: 0;
-  width: 600px;
-  height: 100vh;
-  overflow-y: auto;
+  width: 50%;
+  height: 100vh; /* مهم برای محاسبه درست اسکرول */
   background-color: var(--bg);
   padding: 20px;
   z-index: 100;
+  overflow-y: auto; /* این باعث میشه اسکرول داخل خودش داشته باشه */
 }
-
 
 
 .header {
@@ -156,7 +154,7 @@ ul {
 
 .add-box {
   margin-top: 24px;
-  margin-bottom: 40px;
+  margin-bottom: 110px;
   padding: 24px;
   border: 2px dashed var(--border);
   border-radius: 10px;
